@@ -1,0 +1,38 @@
+rules_version = '2';
+// Reglas de la Matriz de visita áulica RCTX · Eight Academy
+// IMPORTANTE: si usas el MISMO proyecto de Firebase que la bitácora de observación,
+// no reemplaces sus reglas. Copia solo el bloque "MATRIZ RCTX" dentro de las reglas
+// que ya tienes publicadas (dentro de match /databases/{database}/documents { ... }).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== MATRIZ RCTX (inicio) =====
+    function rctxSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function rctxEmail() { return request.auth.token.email.lower(); }
+    // Correo(s) de administración, en minúsculas. Deben coincidir con ADMIN_EMAILS de firebase-config.js
+    function rctxAdmin() { return rctxSignedIn() && rctxEmail() in ['reemplaza_correo_admin@eightacademy.edu.ec']; }
+    function rctxUser() { return /databases/$(database)/documents/rctx_usuarios/$(rctxEmail()); }
+    function rctxMember() { return rctxAdmin() || (rctxSignedIn() && exists(rctxUser())); }
+    function rctxEditor() { return rctxAdmin() || (rctxMember() && get(rctxUser()).data.rol == 'editor'); }
+
+    match /rctx_visitas/{id} {
+      allow read: if rctxMember();
+      allow create, update: if rctxEditor();
+      allow delete: if rctxAdmin();
+    }
+    match /rctx_fotos/{id} {
+      allow read: if rctxMember();
+      allow create, update: if rctxEditor();
+      allow delete: if rctxEditor();
+    }
+    match /rctx_config/{id} {
+      allow read: if rctxMember();
+      allow write: if rctxAdmin();
+    }
+    match /rctx_usuarios/{mail} {
+      allow read: if rctxAdmin() || (rctxSignedIn() && rctxEmail() == mail);
+      allow write: if rctxAdmin();
+    }
+    // ===== MATRIZ RCTX (fin) =====
+  }
+}
